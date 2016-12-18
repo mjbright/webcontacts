@@ -2,6 +2,8 @@
 <head> 
 <title>Welcome!</title> 
 </head> 
+<link rel="stylesheet" type="text/css" href="explorer.css" />
+<script type="text/javascript" language="javascript" src="./jquery.min.js"></script>
 <script src="./jquery.min.js"></script>
 
 <script type='text/javascript'> 
@@ -16,12 +18,19 @@ $("#search_results").slideUp();
         ajax_search(); 
     }); 
 
+    $("#nav li a").click(function() {
+        $("link").attr("href",$(this).attr('rel'));
+        /*$.cookie("css",$(this).attr('rel'), {expires: 365, path: '/'});*/
+        return false;
+    });
+
 }); 
 
 var last_search="";
 
 function ajax_search(){ 
   $("#search_results").show(); 
+  var db_val=$("#selectdb").val(); 
   var search_val=$("#search_term").val(); 
 
   if (search_val.length < 4) {
@@ -41,7 +50,7 @@ function ajax_search(){
       }
   }
 
-  $.post("./find.php", {search_term : search_val}, function(data){
+  $.post("./find.php", {search_term : search_val, db : db_val }, function(data){
       if (data.length>0){ 
          $("#search_results").html(data); 
          sleep(1);
@@ -53,13 +62,54 @@ function ajax_search(){
 </script> 
 
 <body> 
-<h1>Search our Phone Directory</h1> 
 
+    <div id="wrap">
+        <h1>Heading Text</h1>
+        <ul id="nav">
+            <li><a href="#" rel="android.css">android CSS</a></li>
+            <li><a href="#" rel="iphone.css">iphone CSS</a></li>
+            <li><a href="#" rel="desktop.css">desktop CSS</a></li>
+        </ul>
+        <div id="content">
+            <h2>A Simple jQuery Stylesheet Switcher</h2>
+            <p>This is an example of how to build a simple stylesheet switcher in jQuery.</p>
+        </div>
+       <!-- Not working: sidebar:
+        <div id="sidebar">
+            <h2>Sidebar!</h2>
+            <p>Some sidebar text</p>
+        </div>
+       -->
+
+<h1>Form test</h1> 
+<?php
+#print "<hr>\n";
+#foreach ( $_POST as $key => $value ) {
+    #print localtime()."_POST[$key]=>'$value'\n";
+    #print "<br>\n";
+#}
+#print "<hr>\n";
+?>
+
+<h1>Search our Phone Directory</h1> 
     <form action="./find.php" id="searchform" method="post"> 
         <div> 
+            <select id="selectdb" name="db">
+                <option value="all"> ALL </option> 
+                <option value="address" selected> Address </option> 
+                <option value="media"> Media Files  </option> 
+                <option value="mediadisks"> SOON: Media Disks  </option> 
+                <option value="petrol"> TODO: Petrol </option> 
+                <option value="money"> TODO: Money </option> 
+                <option value="cds"> TODO: CDs </option> 
+                <option value="dvds"> TODO: DVDs </option> 
+                <option value="blurays"> TODO: BluRays </option> 
+                <option value="hddvds"> TODO: HD-DVDs </option> 
+            </select>
             <label for="search_term">Search name/phone</label> 
+<!-- <input type="submit" value="search" id="search_button" /> -->
             <input type="text" name="search_term" id="search_term" /> 
-            <input type="submit" value="search" id="search_button" /> 
+  <input type="submit" value="submit" name="submit">
         </div> 
     </form> 
 
@@ -97,19 +147,22 @@ Searching on '*xxx' will search for 'xxx' in all fields.
 <h3> TODO </h3>
 
 <nl>
+<li> Fix addressbook data (e.g. Pao - missing mobile number),
+     Improve data .... missing fields, more telephone types etc ... </li>
+<li> More media sources: Money/Petrol/Media Disks/DropBox/ </li>
+<li> More complete form for query -> AND and OR ... </li>
+<li> Hyperlinks to allow calls, send emails, address->Google Maps ... </li>
 <li> Web Services application -> WSDL and RESTful </li>
 <li> Test queries with JMeter and SOAPui </li>
 <li> Android application - WebService and "local" storage version </li>
 <li> Beautify - using CSS </li>
     See <a href="http://www.css3.me"> This tool </a>
-<li> Improve data .... missing fields, more telephone types etc ... </li>
-<li> More complete form for query </li>
+    See <a href="http://www.htmlgoodies.com/beyond/css/how-to-create-custom-select-menus-with-css.html"> css for menu selections </a>
 <li> Document syntax (in index page) </li>
 <li> Implement counter limit! </li>
 <li> Log ip addresses(sym replace HP/Pau/Home), date, query, rows/chars retrieved </li>
 <li> Detect browser/UA -> adapt content with CSS </li>
     See <a href="http://stackoverflow.com/questions/1005153/auto-detect-mobile-browser-via-user-agent"> This article </a> and it's links
-<li> Hyperlinks to allow calls, send emails, ... </li>
 <li> Fix "+" prefix for all fields search </li>
 <li> Allow images of people </li>
 <li> Allow birthdays of people </li>

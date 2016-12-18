@@ -1,18 +1,73 @@
 <?php
+#print "<hr>\n";
+#foreach ( $_POST as $key => $value ) {
+    #print localtime()."_POST[$key]=>'$value'\n";
+    #print "<br>\n";
+#}
+#print "<hr>\n";
+#$page = $_SERVER['HTTP_HOST'].$_SERVER['PHP_SELF'];
+#print "PAGE=$page\n";
+#print "<br>\n";
+
 define("HOST", "localhost");
-define("USER", "root");
-define("PW", "rootpass");
-define("DB", "address");
+
+$user="mjb";
+$pw="";
+$host=gethostname();
+if (preg_match("/amazonaws.com/i", $host)) {
+    $user="root";
+    $pw="rootpass";
+}
+if (preg_match("/domU-12-31-39-14-F8-27/i", $host)) {
+    $user="root";
+    $pw="rootpass";
+}
+#print "[host=$host] Using $user/$pw\n";
+define("USER", $user);
+define("PW", $pw);
+
+$DEBUG=0;
 
 $def_search_term="Southmead";
 $def_search_term="bright";
 $search_term=$def_search_term;
 
-$all_keys = array_keys($_POST); 
-foreach ( $all_keys as $key_index => $key ) { 
-    $value = $_POST[$key];
-    #print `date`."_POST[$key]=>'$value'\n";
+if ($DEBUG) {
+    foreach ( $_POST as $key => $value ) { 
+        $time=strftime('%c');
+        print $time." _POST[$key]=>'$value'\n";
+        print "<br>\n";
+    }
 }
+$db=$_POST['db'];
+
+if ($db == "address") {
+    $table="address";
+    $default_field="name";
+    $fields=array('id', 'class', 'name', 'tel', 'mobile', 'email',
+                  'address', 'zip', 'country', 'data');
+}
+
+if ($db == "media") {
+    $table="media";
+    $default_field="path";
+    $fields=array('id', 'size', 'cksum', 'filename', 'path');
+}
+
+if ($db == "mediadisks") {
+    $table="mediadisks";
+    $default_field="id";
+    $fields=array('id', 'TODO', 'TODO', 'TODO', 'TODO');
+}
+
+if ($db == "petrol") { print "db=petrol\n"; }
+if ($db == "money") { print "db=money\n"; }
+
+if ($DEBUG) {
+    print "DataBase=$db\n";
+}
+
+define("DB", $db);
 
 function callsCounter() {
     $cnt_file='find_counter.txt';
@@ -20,12 +75,14 @@ function callsCounter() {
     $dat=1;
 
     if (file_exists($cnt_file)) {
-        $fh=fopen($cnt_file, r);
+        $fh=fopen($cnt_file, 'r');
             $dat=fread($fh, filesize($cnt_file));
+            if ($dat == "") { $dat=0; }
             $dat++;
+            print "COUNT=$dat\n";
         fclose($fh);
     }
-    $fh=fopen($cnt_file, w);
+    $fh=fopen($cnt_file, 'w');
         fwrite($fh,$dat);
     fclose($fh);
 
@@ -62,8 +119,10 @@ if (isset($_POST)) {
     getNonPostSearchTerm();
 }
 
-print "<title> Search results </title>\n";
-print "<h1> Search results [$search_term] </h1>\n";
+
+$title="Search results on $db.$table";
+print "<title> $title </title>\n";
+print "<h1> $title [$search_term] </h1>\n";
 
 #phpInfo();
 
@@ -115,7 +174,7 @@ if ($DEBUG) {
 
 
 if ($DEBUG) {
-    $debug_sql = "select * from address";
+    $debug_sql = "select * from $table";
     $rows = mysql_num_rows(mysql_query($debug_sql, $link));
 
     print "Number of rows in DB '".DB."' = $rows rows\n";
@@ -127,6 +186,7 @@ $term = mysql_escape_string($term);
 $where = modify_search_term($term);
 
 function modify_search_term($term) {
+    global $default_field;
 
     # If ---- inserted to force past 4 char limit:
     # Continue
@@ -135,7 +195,7 @@ function modify_search_term($term) {
     }
 
     # Default: search on name only:
-    $where="where name like '%$term%'";
+    $where="where $default_field like '%$term%'";
 
     if (preg_match("/^\/(.+)\//", $term)) {
         $term=preg_replace("/^\/(.+)\/$/", '$1', $term);
@@ -183,15 +243,62 @@ function modify_search_term($term) {
     return $where;
 }
 
-#my $query = "select * from address";
-#my $query = "select * from address where name like '%$term%'";
-#my $query = "select name,tel,address,country from address where name like '%$term%'";
+#my $query = "select * from $table";
+#my $query = "select * from $table where name like '%$term%'";
+#my $query = "select name,tel,address,country from $table where name like '%$term%'";
 
-$query="select * from address $where";
+$query="select * from $table $where";
 
 doMySqlQuery($query, $link);
 
+#http://maps.google.com/maps?f=q&source=s_q&hl=en&geocode=&q=3,+St+Gabriels+House,+Windermore+Terrace,+Liverpool,+L8+3SB&sll=37.0625,-95.677068&sspn=38.281301,81.123047&ie=UTF8&hq=&hnear=Apartment+3,+St+Gabriels+House,+Windermere+Terrace,+Liverpool,+Merseyside+L8+3SB,+United+Kingdom&z=16
+function getMapInfo($val, $country) {
+    if ($country == "") { $country="France"; }
+
+    $val=preg_replace("/\s+/", "+", $val);
+    return "http://maps.google.com/maps?f=q&source=s_q&hl=en&geocode=&q=".$val;
+}
+
+function getIntlNumber($val, $country) {
+    #print "VAL=$val country=$country\n";
+
+    if (preg_match("/^\+/", $val)) {
+        #print "VAL=$val\n";
+        return $val;
+        #return $val . " [OK]";
+    }
+
+    if (preg_match("/^0/", $val)) {
+        $ccode="";
+        if ($country == "") { $country="France"; }
+        if (preg_match("/^\s*$/", $country)) { $country="France"; }
+
+        if (preg_match("/USA/i", $country)) { $ccode="1"; }
+        if (preg_match("/France/i", $country)) { $ccode="33"; }
+        if (preg_match("/Italy/i", $country)) { $ccode="39"; }
+        if (preg_match("/Spain/i", $country)) { $ccode="34"; }
+        if (preg_match("/Portugal/i", $country)) { $ccode="35"; }
+        if (preg_match("/Holland/i", $country)) { $ccode="31"; }
+        if (preg_match("/Switzerland/i", $country)) { $ccode="41"; }
+        if (preg_match("/UK/i", $country)) { $ccode="44"; }
+        if (preg_match("/Germany/i", $country)) { $ccode="49"; }
+
+        if ($ccode != "") {
+            $val=preg_replace("/^0/", "", $val);
+            $val = "+" . $ccode . $val;
+        #print "VAL=$val [CC=$ccode]\n";
+            return $val;
+            #return $val . "[$country]";
+        }
+     }
+
+        #print "VAL=$val\n";
+    return $val;
+    #return $val . " [BOF]";
+}
+
 function doMySqlQuery($query, $link) {
+    global $fields;
     #print mysql_num_rows(mysql_query($query, $link))."\n";
     $query_result = mysql_query($query, $link)
        or die ("Query failed: " . mysql_error() . " Actual query: " . $query);
@@ -220,9 +327,7 @@ function doMySqlQuery($query, $link) {
        #}
    #}
 
-    $fields=array('id', 'class', 'name', 'tel', 'email', 'address', 'zip', 'country', 'data');
-
-    print "<table border='1'>\n<tr>\n";
+    print "<table style='DataTable' border='1'>\n<tr>\n";
     foreach ($fields as &$field) {
         print "<th>$field</th>\n";
     }
@@ -239,7 +344,24 @@ function doMySqlQuery($query, $link) {
         #}
         print "<tr>\n";
         foreach ($fields as &$field) {
-            print "<td>" . $row[$field] . "</td>\n";
+            #print "FIELD=$field\n";
+            $val=$row[$field];
+            if ($field == "mobile") {
+                $val=getIntlNumber($val, $row["country"]);
+                $val="<a href='tel:".$val."'>".$val;
+            }
+            if ($field == "tel") {
+                $val=getIntlNumber($val, $row["country"]);
+                $val="<a href='tel:".$val."'>".$val;
+            }
+            if ($field == "address") {
+                $http=getMapInfo($val, $row["country"]);
+                $val="<a href='".$http."'>".$val;
+http://maps.google.com/maps?f=q&source=s_q&hl=en&geocode=&q=3,+St+Gabriels+House,+Windermore+Terrace,+Liverpool,+L8+3SB&sll=37.0625,-95.677068&sspn=38.281301,81.123047&ie=UTF8&hq=&hnear=Apartment+3,+St+Gabriels+House,+Windermere+Terrace,+Liverpool,+Merseyside+L8+3SB,+United+Kingdom&z=16
+            }
+            if ($field == "email") { $val="<a href='mailto:'".$val."'>".$val; }
+
+            print "<td>" . $val . "</td>\n";
         }
         print "</tr>\n";
     }
